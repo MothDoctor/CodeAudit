@@ -29,7 +29,9 @@ For a `UCLASS`, removing the only constructor is safe: `GENERATED_BODY()` / UHT 
 
 Constructor definitions sit at column 0 as `Class::Class(`, while method definitions have a return-type prefix (`void Class::Method(`). So a single anchored grep isolates constructors and destructors:
 
-- `Grep` pattern `^[UAF]\w+::~?[UAF]\w+\(` over `*.cpp` with `-A 7` to capture the initializer list and body. Use `head_limit: 0` and page with `offset` if the output is truncated, so no file is dropped.
+- `Grep` pattern `^\w+::~?\w+\(` over `*.cpp` with `-A 7` to capture the initializer list and body. Use `head_limit: 0` and page with `offset` if the output is truncated, so no file is dropped.
+- Do NOT restrict the class-name prefix. An earlier `^[UAF]\w+::~?[UAF]\w+\(` pattern silently skipped Slate (`S`), interface (`I`), and template (`T`) classes — e.g. a Slate widget's empty `SFoo::SFoo()` never appeared. The `^` anchor alone already separates constructors/destructors from methods, because a method definition leads with its return type (`void Class::Method(`) so the class name is not at column 0. Discard the few non-ctor matches the broader pattern catches (`operator==`, etc.) by eye.
+- This scan covers constructor/destructor *definitions in `.cpp` files only*. Constructors defined inline in headers (forwarding ctors, small structs) are a separate pass and are not claimed to be covered — say so if you only ran the cpp scan.
 - A few constructors may still escape the `-A 7` window (long initializer lists). For any whose body you could not see, read the file's top region directly. Do not classify a constructor you have not seen the full body of.
 - Enumerate header declarations too (`Grep` the class for the ctor signature) — both the declaration and the definition must go. Watch for the default-argument form `(const FObjectInitializer& OI = FObjectInitializer::Get())` in the header.
 
